@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "nexus-agent": {
+      "command": "python",
+      "args": [
+        "nexus_mcp.py"
+      ],
+      "cwd": ".",
+      "env": {
+        "PYTHONPATH": ".",
+        "PYTHONIOENCODING": "utf-8",
+        "PYTHONUTF8": "1"
+      }
+    }
+  }
+}
