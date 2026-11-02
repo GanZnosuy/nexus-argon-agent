@@ -203,33 +203,32 @@ async def fetch_account_quota_info(account_idx: int, psid: str, psidts: str) -> 
     return res
 
 async def refresh_all_status() -> Dict[str, Any]:
-    """Refresh status for all 3 accounts concurrently."""
+    """Refresh status for all accounts concurrently."""
     global _cached_status
     async with _status_lock:
         load_dotenv(dotenv_path=config.ENV_PATH, override=True)
-        try:
-            config.ACTIVE_ACCOUNT = int(os.getenv("ACTIVE_ACCOUNT", "1"))
-        except ValueError:
-            config.ACTIVE_ACCOUNT = 1
+        config.ACTIVE_ACCOUNT = config.parse_active_account(os.getenv("ACTIVE_ACCOUNT", "1"))
         active_acc = config.ACTIVE_ACCOUNT
 
         acc_tuples = []
-        for idx in (1, 2, 3):
+        for idx in (1, 2, 3, 4, 5):
             psid = os.getenv(f"ACCOUNT{idx}_SECURE_1PSID", "").strip()
             psidts = os.getenv(f"ACCOUNT{idx}_SECURE_1PSIDTS", "").strip()
-            acc_tuples.append((idx, psid, psidts))
+            if psid or idx in (1, 2, 3):  # Always show first 3 accounts, plus any higher configured
+                acc_tuples.append((idx, psid, psidts))
 
         tasks = [fetch_account_quota_info(idx, p, pt) for idx, p, pt in acc_tuples]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         accounts = []
         for i, r in enumerate(results):
+            acc_id = acc_tuples[i][0]
             if isinstance(r, dict):
                 accounts.append(r)
             else:
                 accounts.append({
-                    "account_id": i + 1,
-                    "is_active": (i + 1) == active_acc,
+                    "account_id": acc_id,
+                    "is_active": acc_id == active_acc,
                     "has_credentials": False,
                     "authenticated": False,
                     "status_label": f"Lỗi: {r}",
@@ -249,7 +248,7 @@ async def refresh_all_status() -> Dict[str, Any]:
 
 @app.get("/api/status")
 async def get_status(force: bool = False):
-    """API endpoint to get 3 accounts status and quotas."""
+    """API endpoint to get accounts status and quotas."""
     global _cached_status
     if force or not _cached_status["accounts"] or (time.time() - _cached_status["last_updated"] > 120):
         return await refresh_all_status()
@@ -258,8 +257,8 @@ async def get_status(force: bool = False):
 @app.post("/api/set-active/{account_idx}")
 async def set_active(account_idx: int):
     """Switch the system's ACTIVE_ACCOUNT."""
-    if account_idx not in (1, 2, 3):
-        return JSONResponse({"success": False, "error": "Tài khoản không hợp lệ (chỉ 1, 2, 3)"}, status_code=400)
+    if account_idx not in (1, 2, 3, 4, 5):
+        return JSONResponse({"success": False, "error": "Tài khoản không hợp lệ (hỗ trợ 1-5)"}, status_code=400)
 
     try:
         content = ""

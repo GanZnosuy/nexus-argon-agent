@@ -149,62 +149,70 @@ def sync_cookies_txt(psid: str, psidts: str, psidcc: str = ""):
     except Exception:
         pass
 
-def apply_cookies(account_idx: int, cookies: Dict[str, str], source_name: str) -> bool:
+def apply_cookies(account_idx: int, cookies: Dict[str, str], source_name: str, silent: bool = False) -> bool:
     """Verify and apply parsed cookies to .env and system."""
     psid = cookies.get("__Secure-1PSID")
     psidts = cookies.get("__Secure-1PSIDTS")
     psidcc = cookies.get("__Secure-1PSIDCC", "")
 
     if not psid:
-        console.print(f"[red]❌ Không tìm thấy __Secure-1PSID trong {source_name}![/]")
+        if not silent:
+            console.print(f"[red]❌ Không tìm thấy __Secure-1PSID trong {source_name}![/]")
         return False
 
-    if not psidts:
+    if not psidts and not silent:
         console.print(f"[yellow]⚠️ Tìm thấy __Secure-1PSID nhưng thiếu __Secure-1PSIDTS trong {source_name}.[/]")
 
     ok = update_env_account(account_idx, psid, psidts or "")
     if ok:
         sync_cookies_txt(psid, psidts or "", psidcc)
-        console.print(Panel(
-            f"[bold green]⚡ CẬP NHẬT SIÊU TỐC THÀNH CÔNG CHO TÀI KHOẢN {account_idx}![/]\n\n"
-            f"• [bold cyan]Nguồn:[/] {source_name}\n"
-            f"• [bold cyan]__Secure-1PSID:[/] {psid[:25]}...\n"
-            f"• [bold cyan]__Secure-1PSIDTS:[/] {(psidts[:25] + '...') if psidts else 'None'}\n"
-            f"• [bold cyan]Trạng thái:[/] Đã lưu vào .env và đồng bộ cookies.txt\n"
-            f"• [bold green]Argon 4 sẵn sàng sử dụng ngay lập tức![/]",
-            border_style="green"
-        ))
+        if not silent:
+            console.print(Panel(
+                f"[bold green]⚡ CẬP NHẬT SIÊU TỐC THÀNH CÔNG CHO TÀI KHOẢN {account_idx}![/]\n\n"
+                f"• [bold cyan]Nguồn:[/] {source_name}\n"
+                f"• [bold cyan]__Secure-1PSID:[/] {psid[:25]}...\n"
+                f"• [bold cyan]__Secure-1PSIDTS:[/] {(psidts[:25] + '...') if psidts else 'None'}\n"
+                f"• [bold cyan]Trạng thái:[/] Đã lưu vào .env và đồng bộ cookies.txt\n"
+                f"• [bold green]Argon 4 sẵn sàng sử dụng ngay lập tức![/]",
+                border_style="green"
+            ))
         return True
     return False
 
-def import_from_clipboard(account_idx: int = 1) -> bool:
+def import_from_clipboard(account_idx: int = 1, silent: bool = False) -> bool:
     """Import directly from clipboard copied from 'Get cookies.txt LOCALLY'."""
-    console.print(f"[dim]Đang kiểm tra dữ liệu clipboard cho Tài khoản {account_idx}...[/dim]")
+    if not silent:
+        console.print(f"[dim]Đang kiểm tra dữ liệu clipboard cho Tài khoản {account_idx}...[/dim]")
     clip_text = get_clipboard_text()
     if not clip_text:
-        console.print("[yellow]Clipboard đang trống! Hãy bấm icon extension 'Get cookies.txt LOCALLY' -> bấm Copy rồi thử lại.[/]")
+        if not silent:
+            console.print("[yellow]Clipboard đang trống! Hãy bấm icon extension 'Get cookies.txt LOCALLY' -> bấm Copy rồi thử lại.[/]")
         return False
 
     cookies = parse_netscape_text(clip_text)
-    return apply_cookies(account_idx, cookies, "Clipboard (Copy từ extension)")
+    return apply_cookies(account_idx, cookies, "Clipboard (Copy từ extension)", silent=silent)
 
-def import_from_downloads(account_idx: int = 1) -> bool:
+def import_from_downloads(account_idx: int = 1, silent: bool = False) -> bool:
     """Import from newest cookies.txt exported to Downloads folder."""
-    console.print(f"[dim]Đang quét thư mục Downloads cho Tài khoản {account_idx}...[/dim]")
+    if not silent:
+        console.print(f"[dim]Đang quét thư mục Downloads cho Tài khoản {account_idx}...[/dim]")
     newest = find_newest_downloaded_cookie_file(max_age_minutes=20)
     if not newest:
-        console.print(f"[yellow]Không tìm thấy file cookies mới nào trong {DOWNLOADS_DIR} (trong 20 phút qua).[/]")
-        console.print("[dim]Gợi ý: Mở tab Gemini, bấm extension 'Get cookies.txt LOCALLY' -> bấm Export/Download, sau đó chạy lại lệnh.[/dim]")
+        if not silent:
+            console.print(f"[yellow]Không tìm thấy file cookies mới nào trong {DOWNLOADS_DIR} (trong 20 phút qua).[/]")
+            console.print("[dim]Gợi ý: Mở tab Gemini, bấm extension 'Get cookies.txt LOCALLY' -> bấm Export/Download, sau đó chạy lại lệnh.[/dim]")
         return False
 
-    console.print(f"[cyan]Tìm thấy file mới nhất: {newest.name}[/]")
+    if not silent:
+        console.print(f"[cyan]Tìm thấy file mới nhất: {newest.name}[/]")
     try:
         with open(newest, "r", encoding="utf-8", errors="replace") as f:
             content = f.read()
         cookies = parse_netscape_text(content)
-        return apply_cookies(account_idx, cookies, f"Tệp tải về ({newest.name})")
+        return apply_cookies(account_idx, cookies, f"Tệp tải về ({newest.name})", silent=silent)
     except Exception as e:
-        console.print(f"[red]Lỗi đọc file {newest}:[/] {e}")
+        if not silent:
+            console.print(f"[red]Lỗi đọc file {newest}:[/] {e}")
         return False
 
 def import_from_local_file(file_path: str, account_idx: int = 1) -> bool:

@@ -5,6 +5,7 @@ Loads environment variables, defines paths, and manages multi-account credential
 
 import os
 from pathlib import Path
+from typing import Any, List, Tuple, Dict, Optional
 from dotenv import load_dotenv
 
 # Define Project Paths
@@ -17,16 +18,22 @@ ENV_PATH = PROJECT_ROOT / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 
 # Active Account Configuration
-try:
-    ACTIVE_ACCOUNT = int(os.getenv("ACTIVE_ACCOUNT", "1"))
-except ValueError:
-    ACTIVE_ACCOUNT = 1
+def parse_active_account(val: Any) -> int:
+    if val is None:
+        return 1
+    val_str = str(val).strip().strip("\"'").strip()
+    try:
+        return int(val_str)
+    except ValueError:
+        return 1
+
+ACTIVE_ACCOUNT = parse_active_account(os.getenv("ACTIVE_ACCOUNT", "1"))
 
 # Multi-account Cookie Credentials
 def get_accounts():
     """
     Returns a list of account credential tuples: (secure_1psid, secure_1psidts)
-    Reads up to 3 accounts from environment variables.
+    Reads accounts from environment variables for backward compatibility.
     """
     accounts = []
     for idx in (1, 2, 3, 4, 5):
@@ -34,6 +41,19 @@ def get_accounts():
         psidts = os.getenv(f"ACCOUNT{idx}_SECURE_1PSIDTS", "").strip()
         if psid:
             accounts.append((psid, psidts))
+    return accounts
+
+def get_accounts_with_ids():
+    """
+    Returns a list of tuples: (account_number, secure_1psid, secure_1psidts)
+    Preserves exact 1-based account ID (1 to 5) even if intermediate accounts are omitted.
+    """
+    accounts = []
+    for idx in (1, 2, 3, 4, 5):
+        psid = os.getenv(f"ACCOUNT{idx}_SECURE_1PSID", "").strip()
+        psidts = os.getenv(f"ACCOUNT{idx}_SECURE_1PSIDTS", "").strip()
+        if psid:
+            accounts.append((idx, psid, psidts))
     return accounts
 
 # Fallback & Third-party APIs

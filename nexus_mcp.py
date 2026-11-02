@@ -38,6 +38,7 @@ sys.stdout = sys.stderr
 from core.brain import Brain
 from core.orchestrator import NexusOrchestrator
 from core.memory import Memory
+import config
 
 # Global runtime state
 _brain: Optional[Brain] = None
@@ -301,8 +302,7 @@ def execute_tool(name: str, args: Dict[str, Any]) -> str:
 
     elif name == "nexus_status":
         from dotenv import load_dotenv
-        load_dotenv(override=True)
-        orch.brain.accounts = config.get_accounts()
+        load_dotenv(dotenv_path=config.ENV_PATH, override=True)
         loop.run_until_complete(orch.brain.init(verify=False))
         health = loop.run_until_complete(orch.brain.check_account_health())
         status_info = {
@@ -311,6 +311,8 @@ def execute_tool(name: str, args: Dict[str, Any]) -> str:
             "extended_thinking": "Bật (Suy luận sâu tối đa)",
             "active_account": f"Account {health.get('active_account')}/{health.get('total_accounts')}",
             "health_map": health.get("health_map"),
+            "accounts_detail": health.get("accounts_detail"),
+            "has_argon": health.get("has_argon"),
             "memory_entries": len(orch.memory),
             "agents_available": list(orch.agents.keys()),
             "tools_available": orch.tools.list_names()

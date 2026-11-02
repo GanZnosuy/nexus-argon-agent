@@ -218,6 +218,26 @@ async def extract_cookie_for_account(account_idx: int = 1, timeout_seconds: int 
             update_cookies_txt(captured_cookies["psid"], captured_cookies["psidts"], captured_cookies["psidcc"])
             console.print(f"[green]✓ Đã đồng bộ file cookies.txt![/]")
 
+            # Cập nhật trực tiếp vào global config và CAIDATHETTHONG nếu là tài khoản 1
+            if account_idx == 1:
+                try:
+                    caida_env = Path.home() / "OneDrive" / "Desktop" / "CAIDATHETTHONG" / ".env"
+                    if caida_env.exists():
+                        txt = caida_env.read_text(encoding="utf-8", errors="replace")
+                        txt = re.sub(r"^GEMINI_SECURE_1PSID\s*=.*$", f'GEMINI_SECURE_1PSID="{captured_cookies["psid"]}"', txt, flags=re.MULTILINE)
+                        txt = re.sub(r"^GEMINI_SECURE_1PSIDTS\s*=.*$", f'GEMINI_SECURE_1PSIDTS="{captured_cookies["psidts"]}"', txt, flags=re.MULTILINE)
+                        caida_env.write_text(txt, encoding="utf-8")
+                    
+                    global_json = Path(os.path.expanduser(r"~/.gemini/config/gemini_cookies.json"))
+                    global_json.parent.mkdir(parents=True, exist_ok=True)
+                    global_json.write_text(json.dumps({
+                        "GEMINI_SECURE_1PSID": captured_cookies["psid"],
+                        "GEMINI_SECURE_1PSIDTS": captured_cookies["psidts"],
+                        "GEMINI_SECURE_1PSIDCC": captured_cookies.get("psidcc", "")
+                    }, indent=2, ensure_ascii=False), encoding="utf-8")
+                except Exception as e_direct:
+                    console.print(f"[dim][Lỗi cập nhật nhanh trực tiếp]: {e_direct}[/dim]")
+
             # Đồng bộ sang daemon nếu có trên máy người dùng
             try:
                 sync_script = Path.home() / "OneDrive" / "Desktop" / "CAIDATHETTHONG" / "gemini_cookie_daemon.py"
